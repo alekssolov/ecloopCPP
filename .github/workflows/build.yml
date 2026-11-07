@@ -1,0 +1,67 @@
+# GitHub Actions workflow for ecloopCPP.
+# Place this file at:  .github/workflows/build.yml
+#
+# It builds the project on a clean Ubuntu VM (your Makefile's Linux path,
+# no Cygwin specifics needed) in two configurations and runs an end-to-end
+# smoke test for each, so a broken build or a broken search shows up as a
+# red X right next to the commit.
+
+name: build
+
+# When this runs: on every push, on pull requests, and on a manual click
+# of "Run workflow" in the repository's Actions tab.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest        # clean Ubuntu 24.04 (ships g++ 13, binutils, python3)
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show toolchain versions
+        run: |
+          g++ --version
+          as --version | head -1
+
+      # hash160 of private key 1 (address 1EHNa6Q4Jz2uvNExL497mE43ikXhwF6kZm).
+      # Planting it in a tiny .bin lets the smoke test prove the whole pipeline
+      # end to end: key -> public key -> hash160 -> match -> key.txt. This does
+      # NOT touch your real data/btc.bin.
+      - name: Prepare smoke-test fixture
+        run: |
+          python3 -c "import sys; sys.stdout.buffer.write(bytes.fromhex('91b24bf9f5288532960ac687abb035127b1d28a5'))" > test1.bin
+
+      # ── default build: universal binary (every SIMD tier, picked at run time) ──
+      - name: Build (default / universal)
+        run: make
+
+      - name: Smoke test — universal binary finds the key
+        run: |
+          rm -f key.txt progress_*.txt
+          timeout 30 ./ecloop -b test1.bin -k 1 -e ff -t 1 -v 1 || true
+          if [ ! -f key.txt ]; then
+            echo "FAIL: key.txt was not produced — the search did not find privkey 1"
+            exit 1
+          fi
+          echo "----- key.txt -----"
+          cat key.txt
+
+      # ── portable build: for CPUs without BMI2/ADX (uses src/s2n_portable.cpp) ──
+      - name: Build (portable, no BMI2/ADX)
+        run: make PORTABLE=1 rebuild
+
+      - name: Smoke test — portable binary finds the key
+        run: |
+          rm -f key.txt progress_*.txt
+          timeout 30 ./ecloop -b test1.bin -k 1 -e ff -t 1 -v 1 || true
+          if [ ! -f key.txt ]; then
+            echo "FAIL: key.txt was not produced — the portable search did not find privkey 1"
+            exit 1
+          fi
+          echo "----- key.txt -----"
+          cat key.txt
