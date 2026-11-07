@@ -1,5 +1,7 @@
 # ecloopCPP
 
+![build](https://github.com/alekssolov/ecloopCPP/actions/workflows/build.yml/badge.svg)
+
 > A C++ fork of [**vladkens/ecloop**](https://github.com/vladkens/ecloop).
 
 The author was inspired to write this program by the **"ecloop"** project
@@ -49,7 +51,7 @@ a short usage reminder.
 | Option | Argument | Default | Description |
 |--------|----------|---------|-------------|
 | `-b`   | `<file.bin>` | — (required) | Database of hash160 records to search against, **20 bytes each**, stored most‑significant byte first (canonical hash160 order). Loaded once at start‑up and shared copy‑on‑write with every worker. |
-| `-t`   | `<n>`    | all usable CPUs | Number of workers. Workers are **processes** (`fork`), not threads; each reports progress through a shared memory mapping. A value `≤ 0` falls back to the CPU count. |
+| `-t`   | `<n>`    | all usable CPUs | Number of parallel workers — the *threads* option, as in upstream ecloop (the variable is even named `threads`). In this fork each worker is a separate **process** (`fork()`), not an OS thread, which is why the database is shared copy-on-write and progress is reported through a shared memory mapping. A value `≤ 0` falls back to the CPU count. |
 | `-s`   | `<bits>` | `256`   | Private‑key size in **bits**. Defines an endomorphism random walk over keys below `2^bits` ( `-s 256` = the whole key space). Clamped to the range `4…256` and rounded **down** to a whole number of hex digits (a multiple of 4), so e.g. `-s 71` becomes `68`. Mutually exclusive with `-k`/`-e`. |
 | `-v`   | `<level>`| `0`     | Verbosity: `0` quiet, `1` print the rate line, `2` print every key, `5` also print the hashes. |
 | `-k`   | `<hex>`  | —       | **First** private key of a sequential sweep (1…64 hex digits). Supplying `-k` selects *range mode*. Mutually exclusive with `-s`. |
